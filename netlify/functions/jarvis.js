@@ -1,17 +1,16 @@
 // netlify/functions/jarvis.js
-// Proxies Claude API calls server-side so the browser avoids CORS errors.
-// Deploy alongside index.html — Netlify auto-detects this folder.
-//
-// ⚠️  Set your Anthropic API key in Netlify:
-//     Site Settings → Environment Variables → Add: ANTHROPIC_API_KEY
-
 exports.handler = async (event) => {
-  // Only allow POST
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
+
+  // Debug logging
+  console.log('API key present:', !!apiKey);
+  console.log('API key length:', apiKey ? apiKey.length : 0);
+  console.log('Env keys available:', Object.keys(process.env).filter(k => !k.includes('npm')).join(', '));
+
   if (!apiKey) {
     return {
       statusCode: 500,
