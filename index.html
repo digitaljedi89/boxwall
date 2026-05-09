@@ -611,14 +611,21 @@ async function sbUpsert(table, body) {
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
+async function sbPatch(table, match, body) {
+  const headers = { ...h(), 'Prefer': 'return=representation' };
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?${match}`, { method:'PATCH', headers, body:JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
 
 // ── LED control via Supabase ─────────────────────────────────
-// The ESP32 firmware polls led_state table for its boxes.
-// When a box's is_on changes, the ESP32 reacts within ~1 second.
+// Updates led_state column directly on the boxes table.
+// ESP32 polls boxes table and reacts within ~1 second.
 async function setLED(boxId, on) {
   try {
-    await sbUpsert('led_state', { box_id: boxId, is_on: on, updated_at: new Date().toISOString() });
+    await sbPatch('boxes', 'id=eq.'+boxId, { led_state: on });
     if (on) { litBoxes[boxId] = true; } else { delete litBoxes[boxId]; }
+    if (localBoxes[boxId]) localBoxes[boxId].led_state = on;
     renderLightsBar();
     renderBoxGrid();
     return true;
@@ -631,7 +638,8 @@ async function killAllLights() {
   showLoading();
   try {
     for (const id of ids) {
-      await sbUpsert('led_state', { box_id: id, is_on: false, updated_at: new Date().toISOString() });
+      await sbPatch('boxes', 'id=eq.'+id, { led_state: false });
+      if (localBoxes[id]) localBoxes[id].led_state = false;
     }
     litBoxes = {};
     renderLightsBar();
@@ -643,9 +651,9 @@ async function killAllLights() {
 
 async function loadLitState() {
   try {
-    const rows = await sbGet('led_state', 'is_on=eq.true&select=box_id');
+    const rows = await sbGet('boxes', 'led_state=eq.true&select=id');
     litBoxes = {};
-    rows.forEach(r => { litBoxes[r.box_id] = true; });
+    rows.forEach(r => { litBoxes[r.id] = true; });
     renderLightsBar();
   } catch {}
 }
@@ -850,7 +858,6 @@ async function deleteBox(boxId) {
   showLoading();
   try {
     await sbDelete('boxes','id=eq.'+boxId);
-    await sbDelete('led_state','box_id=eq.'+boxId);
     delete localBoxes[boxId]; delete litBoxes[boxId];
     closeModal('m-detail'); renderBoxGrid(); renderLightsBar(); toast('Box deleted.');
   } catch(e){toast('Error: '+e.message);}
