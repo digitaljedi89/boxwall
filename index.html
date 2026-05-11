@@ -241,9 +241,10 @@ hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 #jarvis-panel {
   position: fixed; bottom: 92px; right: 24px; z-index: 500;
   width: 320px; background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; overflow: visible; box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  border-radius: 10px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.6);
   transform: translateY(12px) scale(0.97); opacity: 0;
   pointer-events: none; transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  max-height: 90vh;
 }
 #jarvis-panel.open { transform: translateY(0) scale(1); opacity: 1; pointer-events: all; }
 .jp-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); background: linear-gradient(135deg,rgba(212,255,0,0.06),transparent); border-radius: 10px 10px 0 0; overflow: hidden; }
@@ -251,7 +252,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 .jp-status { font-family: 'DM Mono',monospace; font-size: 0.62rem; color: var(--muted2); }
 .jp-close  { background: none; border: none; color: var(--muted2); cursor: pointer; font-size: 1rem; padding: 0 4px; }
 .jp-close:hover { color: var(--text); }
-.jp-log { height: 160px; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.jp-log { height: 120px; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 .jp-msg { font-size: 0.78rem; line-height: 1.5; padding: 8px 11px; border-radius: 6px; max-width: 88%; }
 .jp-msg.user   { background: rgba(212,255,0,0.1); border: 1px solid rgba(212,255,0,0.2); color: var(--accent); align-self: flex-end; font-family: 'DM Mono',monospace; font-size: 0.72rem; }
 .jp-msg.jarvis { background: var(--surface2); border: 1px solid var(--border); color: var(--text); align-self: flex-start; }
