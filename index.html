@@ -262,9 +262,9 @@ hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 .jp-send { background: var(--accent); border: none; color: #000; padding: 8px 12px; border-radius: var(--r); cursor: pointer; font-weight: 700; font-size: 0.78rem; transition: all 0.15s; }
 .jp-send:hover { background: #c8f000; }
 .jp-mic-row { padding: 0 12px 12px; }
-.jp-mic { width: 100%; background: none; border: 1px solid var(--border); color: var(--muted2); padding: 7px 10px; border-radius: var(--r); cursor: pointer; font-family: 'DM Mono',monospace; font-size: 0.68rem; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.jp-mic:hover { border-color: var(--accent); color: var(--accent); }
-.jp-mic.active { border-color: #ff4545; color: #ff4545; background: rgba(255,69,69,0.08); }
+.jp-user-btn { width: 100%; background: none; border: 1px solid var(--border); color: var(--muted2); padding: 7px 10px; border-radius: var(--r); cursor: pointer; font-family: 'DM Mono',monospace; font-size: 0.68rem; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.jp-user-btn:hover { border-color: var(--accent); color: var(--accent); }
+.jp-user-btn.madam { border-color: #ff69b4; color: #ff69b4; background: rgba(255,105,180,0.08); }
 .jp-tip { font-family: 'DM Mono',monospace; font-size: 0.6rem; color: var(--muted); text-align: center; padding: 0 12px 10px; line-height: 1.5; }
 </style>
 </head>
@@ -464,6 +464,16 @@ create policy "Public all" on led_state for all using (true) with check (true);<
           </select>
         </div>
       </div>
+      <div class="field">
+        <label class="lbl">Board ID <span style="color:var(--muted2);font-weight:400;">(which ESP32 controls this box)</span></label>
+        <select class="select" id="bf-board">
+          <option value="">— none —</option>
+          <option value="1">Board 1</option>
+          <option value="2">Board 2</option>
+          <option value="3">Board 3</option>
+          <option value="4">Board 4</option>
+        </select>
+      </div>
     </div>
     <div class="modal-ftr">
       <button class="btn btn-ghost" onclick="closeModal('m-box-form')">Cancel</button>
@@ -554,7 +564,7 @@ create policy "Public all" on led_state for all using (true) with check (true);<
     <button class="jp-send" onclick="jarvisSend()">Send</button>
   </div>
   <div class="jp-mic-row">
-    <button class="jp-mic" id="jp-mic-btn" onclick="jarvisNativeMic()">🎤 Tap to speak</button>
+    <button class="jp-user-btn" id="jp-user-btn" onclick="toggleJarvisUser()" title="Switch user">👤 <span id="jp-user-label">Sir</span></button>
   </div>
   <div class="jp-tip">Try: "Where's my drill?" · "Turn on box 3" · "What's in the garage?"</div>
 </div>
@@ -724,7 +734,7 @@ async function loadBoxes() {
   try {
     const rows = await sbGet('boxes','select=*&order=created_at.desc');
     localBoxes = {};
-    rows.forEach(r => { localBoxes[r.id]={id:r.id,name:r.name,desc:r.description||'',items:r.items||[],zone_id:r.zone_id||null,pin_number:r.pin_number||null,created:new Date(r.created_at).getTime()}; });
+    rows.forEach(r => { localBoxes[r.id]={id:r.id,name:r.name,desc:r.description||'',items:r.items||[],zone_id:r.zone_id||null,pin_number:r.pin_number||null,board_id:r.board_id||null,created:new Date(r.created_at).getTime()}; });
   } catch(e) { toast('Error loading boxes: '+e.message); }
   hideLoading();
   renderBoxGrid();
@@ -779,6 +789,7 @@ async function openNewBox() {
   document.getElementById('bf-submit').textContent='Create Box';
   document.getElementById('bf-name').value='';
   document.getElementById('bf-desc').value='';
+  document.getElementById('bf-board').value='';
   if(!Object.keys(localZones).length) await loadZones();
   populateZoneDropdown(null,null);
   openModal('m-box-form');
@@ -792,6 +803,7 @@ async function openEditBox(boxId) {
   document.getElementById('bf-submit').textContent='Save Changes';
   document.getElementById('bf-name').value=box.name;
   document.getElementById('bf-desc').value=box.desc||'';
+  document.getElementById('bf-board').value=box.board_id||'';
   if(!Object.keys(localZones).length) await loadZones();
   populateZoneDropdown(box.zone_id,box.pin_number);
   closeModal('m-detail');
@@ -835,18 +847,20 @@ async function submitBoxForm() {
   const zoneId=document.getElementById('bf-zone').value||null;
   const pin=document.getElementById('bf-pin').value;
   const pinNum=pin?parseInt(pin):null;
+  const boardVal=document.getElementById('bf-board').value;
+  const boardId=boardVal?parseInt(boardVal):null;
   const btn=document.getElementById('bf-submit'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
   showLoading();
   try {
     if(editingBoxId) {
       const box=localBoxes[editingBoxId];
-      box.name=name; box.desc=document.getElementById('bf-desc').value.trim(); box.zone_id=zoneId; box.pin_number=pinNum;
-      await sbPatch('boxes','id=eq.'+editingBoxId,{name,description:box.desc,zone_id:zoneId,pin_number:pinNum});
+      box.name=name; box.desc=document.getElementById('bf-desc').value.trim(); box.zone_id=zoneId; box.pin_number=pinNum; box.board_id=boardId;
+      await sbPatch('boxes','id=eq.'+editingBoxId,{name,description:box.desc,zone_id:zoneId,pin_number:pinNum,board_id:boardId});
       closeModal('m-box-form'); renderBoxGrid(); openDetail(editingBoxId); toast('Box updated!');
     } else {
       const id=uid();
-      const box={id,name,desc:document.getElementById('bf-desc').value.trim(),items:[],zone_id:zoneId,pin_number:pinNum,created:Date.now()};
-      await sbPost('boxes',{id,name,description:box.desc,items:[],zone_id:zoneId,pin_number:pinNum});
+      const box={id,name,desc:document.getElementById('bf-desc').value.trim(),items:[],zone_id:zoneId,pin_number:pinNum,board_id:boardId,created:Date.now()};
+      await sbPost('boxes',{id,name,description:box.desc,items:[],zone_id:zoneId,pin_number:pinNum,board_id:boardId});
       localBoxes[id]=box; closeModal('m-box-form'); renderBoxGrid(); toast('Box created!'); openDetail(id);
     }
   } catch(e){toast('Error: '+e.message);}
@@ -1250,14 +1264,31 @@ document.querySelectorAll('.overlay').forEach(o=>{o.addEventListener('click',e=>
 // Calls /.netlify/functions/jarvis (proxy) to avoid CORS
 // Speech I/O: free browser Web Speech APIs
 // ═══════════════════════════════════════════════════════════════
-let jarvisOpen=false, jarvisMicActive=false, jarvisRecognition=null, jarvisHistory=[];
+let jarvisOpen=false, jarvisMicActive=false, jarvisRecognition=null, jarvisHistory=[], jarvisUser='sir';
+
+function toggleJarvisUser(){
+  jarvisUser = jarvisUser==='sir' ? 'madam' : 'sir';
+  const label = jarvisUser==='sir' ? 'Sir' : 'Ma\'am';
+  document.getElementById('jp-user-label').textContent = label;
+  document.getElementById('jp-user-btn').className = jarvisUser==='sir' ? 'jp-user-btn' : 'jp-user-btn madam';
+  jarvisAddMsg('sys', `Switched to ${label} mode.`);
+}
 
 function toggleJarvisPanel(){
   jarvisOpen=!jarvisOpen;
   document.getElementById('jarvis-panel').classList.toggle('open',jarvisOpen);
   if(jarvisOpen&&jarvisHistory.length===0){
-    const bc=Object.keys(localBoxes).length, zc=Object.keys(localZones).length;
-    const msg=`JARVIS online, sir. I have ${bc} box${bc!==1?'es':''} catalogued across ${zc} zone${zc!==1?'s':''}. How may I assist?`;
+    const hour = new Date().getHours();
+    const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+    const title = jarvisUser==='sir' ? 'sir' : "ma'am";
+    const greetings = [
+      `Good ${timeOfDay}, ${title}. All systems are online and standing by.`,
+      `Good ${timeOfDay}, ${title}. BoxWall is online. Your inventory awaits.`,
+      `Good ${timeOfDay}. All systems nominal. How may I be of service, ${title}?`,
+      `Online and fully operational, ${title}. Good ${timeOfDay}.`,
+      `Good ${timeOfDay}, ${title}. Ready to assist.`
+    ];
+    const msg = greetings[Math.floor(Math.random() * greetings.length)];
     jarvisAddMsg('jarvis',msg); jarvisSpeak(msg);
   }
   if(jarvisOpen)setTimeout(()=>document.getElementById('jp-input').focus(),250);
@@ -1279,7 +1310,7 @@ async function jarvisProcess(userText){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        system:`You are JARVIS, the voice assistant for BoxWall — a smart QR-code box inventory system with LED lights. Speak like Tony Stark's JARVIS: confident, precise, slightly formal British style. Keep responses to 1-3 sentences. Never mention you're an AI. IMPORTANT: Always refer to boxes by their name only — never read out box IDs or QR code strings. The [boxId:...] values in the inventory are for your internal use only to populate ACTION blocks, never speak them aloud.
+        system:`You are JARVIS, the voice assistant for BoxWall — a smart QR-code box inventory system with LED lights. Speak like Tony Stark's JARVIS: confident, precise, slightly formal British style. Keep responses to 1-3 sentences. Never mention you're an AI. Address the user as "${jarvisUser==='sir'?'sir':"ma'am"}" where appropriate. IMPORTANT: Always refer to boxes by their name only — never read out box IDs or QR code strings. The [boxId:...] values in the inventory are for your internal use only to populate ACTION blocks, never speak them aloud.
 
 CURRENT INVENTORY:
 ${buildInventoryContext()}
