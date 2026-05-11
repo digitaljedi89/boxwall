@@ -557,7 +557,6 @@ create policy "Public all" on led_state for all using (true) with check (true);<
     <button class="jp-close" onclick="toggleJarvisPanel()">✕</button>
   </div>
   <div class="jp-log" id="jp-log">
-    <div class="jp-msg sys">BoxWall assistant online.</div>
   </div>
   <div class="jp-input-row">
     <input class="jp-text-input" id="jp-input" placeholder="Ask anything…" onkeydown="if(event.key==='Enter')jarvisSend()">
@@ -1264,11 +1263,11 @@ document.querySelectorAll('.overlay').forEach(o=>{o.addEventListener('click',e=>
 // Calls /.netlify/functions/jarvis (proxy) to avoid CORS
 // Speech I/O: free browser Web Speech APIs
 // ═══════════════════════════════════════════════════════════════
-let jarvisOpen=false, jarvisMicActive=false, jarvisRecognition=null, jarvisHistory=[], jarvisUser='sir';
+let jarvisOpen=false, jarvisMicActive=false, jarvisRecognition=null, jarvisHistory=[], jarvisUser='sir', jarvisGreeted=false;
 
 function toggleJarvisUser(){
   jarvisUser = jarvisUser==='sir' ? 'madam' : 'sir';
-  const label = jarvisUser==='sir' ? 'Sir' : 'Ma\'am';
+  const label = jarvisUser==='sir' ? 'Sir' : "Ma'am";
   document.getElementById('jp-user-label').textContent = label;
   document.getElementById('jp-user-btn').className = jarvisUser==='sir' ? 'jp-user-btn' : 'jp-user-btn madam';
   jarvisAddMsg('sys', `Switched to ${label} mode.`);
@@ -1277,7 +1276,8 @@ function toggleJarvisUser(){
 function toggleJarvisPanel(){
   jarvisOpen=!jarvisOpen;
   document.getElementById('jarvis-panel').classList.toggle('open',jarvisOpen);
-  if(jarvisOpen&&jarvisHistory.length===0){
+  if(jarvisOpen && !jarvisGreeted){
+    jarvisGreeted=true;
     const hour = new Date().getHours();
     const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
     const title = jarvisUser==='sir' ? 'sir' : "ma'am";
@@ -1289,9 +1289,10 @@ function toggleJarvisPanel(){
       `Good ${timeOfDay}, ${title}. Ready to assist.`
     ];
     const msg = greetings[Math.floor(Math.random() * greetings.length)];
-    jarvisAddMsg('jarvis',msg); jarvisSpeak(msg);
+    jarvisAddMsg('jarvis', msg);
+    jarvisSpeak(msg);
   }
-  if(jarvisOpen)setTimeout(()=>document.getElementById('jp-input').focus(),250);
+  if(jarvisOpen) setTimeout(()=>document.getElementById('jp-input').focus(), 250);
 }
 
 async function jarvisSend(){
